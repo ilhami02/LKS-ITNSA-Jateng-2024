@@ -58,7 +58,7 @@ Configure the system environment timezone, and hostname, IP address according to
             Before
             # On what interfaces should the DHCP server (dhcpd) serve DHCP requests?
             # Separate multiple interfaces with spaces, e.g. "eth0 eth1".
-            INTERFACESv4="" <- type ens33
+            INTERFACESv4="" <- type your interface name to used by dhcp server (my int ens33)
             INTERFACESv6=""
 
             After
@@ -87,7 +87,7 @@ Configure the system environment timezone, and hostname, IP address according to
             After
             subnet 192.168.10.0 netmask 255.255.255.0 {
             range 192.168.10.100 192.168.10.200;
-            option domain-name-servers 192.168.10.1;
+            option domain-name-servers 192.168.10.11;
             option domain-name "utara.site";
             option routers 192.168.10.1;
             option broadcast-address 192.168.10.255;
@@ -112,4 +112,147 @@ Configure the system environment timezone, and hostname, IP address according to
 
             Adjust the hardware ethernet with your computer linux, to show the hardware ethernet type "ip addr"
 
+- DNS Server
+  - Setup domain in LINSRV1 using Bind9
+  - Setup LINSRV1 as a master DNS Server and LINSRV2 as a Slave
+  - Configure the forwarder to selatan.site
+  
+    LINSRV1 (Master)
+    - Install DNS Server Service (bind9)
+      #apt install bind9 -y
 
+    - Configure named.conf.local
+      #nano /etc/bind/named.conf.local
+
+            ---------------------------------------------------------------
+            zone "utara.site" {
+            allow-transfer { 192.168.10.12; };
+            type master;
+            file "/etc/bind/db.lks";
+            };
+
+            zone "10.168.192.in-addr.arpa" {
+            allow-transfer { 192.168.10.12; };
+            type master;
+            file "/etc/bind/rev.db.lks";
+            };
+
+            zone "70.10.103.in-addr.arpa" {
+            allow-transfer { 192.168.10.12; };
+            type master;
+            file "/etc/bind/rev.db.lks";
+            };
+            ---------------------------------------------------------------
+
+    - Copy db.local to db.lks
+      #cp /etc/bind/db.local /etc/bind/db.lks
+
+    - Copy db.127 to rev.db.lks
+      #cp /etc/bind/db.127 /etc/bind/rev.db.lks
+
+    - Configure db.lks
+      #nano /etc/bind/db.lks
+
+            ---------------------------------------------------------------
+            @       IN      SOA     utara.site. root.utara.site. (
+                                2         ; Serial
+                          604800         ; Refresh
+                            86400         ; Retry
+                          2419200         ; Expire
+                          604800 )       ; Negative Cache TTL
+            ;
+            @       IN      NS      ns1.utara.site.
+            @       IN      NS      ns2.utara.site.
+            @       IN      A       192.168.10.11
+            @       IN      A       192.168.10.12
+            ns1     IN      A       192.168.10.11
+            ns2     IN      A       192.168.10.12
+            LINSRV1 IN      A       192.168.10.11
+            LINSRV2 IN      A       192.168.10.12
+            www     IN      A       103.10.70.110
+            file    IN      A       192.168.10.12
+            mail    IN      A       192.168.10.11
+            @       IN      MX      10      mail.utara.site
+            ---------------------------------------------------------------
+
+    - Configure rev.db.lks
+      #nano /etc/bind/rev/db.lks
+
+            ---------------------------------------------------------------
+            @       IN      SOA     utara.site. root.utara.site. (
+                              1         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+            ;
+            @       IN      NS      ns1.utara.site.
+            @       IN      NS      ns2.utara.site.
+            11      IN      PTR     ns1.utara.site.
+            12      IN      PTR     ns2.utara.site.
+            11      IN      PTR     LINSRV1.utara.site.
+            12      IN      PTR     LINSRV2.utara.site.
+            110     IN      PTR     www.utara.site.
+            12      IN      PTR     file.utara.site.
+            ---------------------------------------------------------------
+
+    - Configure Forwarder 
+
+            ---------------------------------------------------------------
+            options {
+                    directory "/var/cache/bind";
+
+                    forwarders {
+                            103.10.70.120;
+                    };
+
+                    dnssec-validation no;
+                    allow-recursion { any; };
+
+                    listen-on-v6 { any; };
+            };
+            ---------------------------------------------------------------
+
+    LINSRV2 (Slave)
+    - Install DNS Server Service (bind9)
+      #apt install bind9 -y
+
+    - Configure named.conf.local
+      #nano /etc/bind/named.conf.local
+
+            ---------------------------------------------------------------
+            zone "utara.site" {
+            masters { 192.168.10.11; };
+            type slave;
+            file "/var/cache/bind/db.lks";
+            };
+
+            zone "10.168.192.in-addr.arpa" {
+            masters { 192.168.10.11; };
+            type slave;
+            file "/var/cache/bind/rev1.db.lks";
+            };
+
+            zone "70.10.103.in-addr.arpa" {
+            masters { 192.168.10.11; };
+            type slave;
+            file "/var/cache/bind/rev2.db.lks";
+            };
+            ---------------------------------------------------------------
+
+    - Configure Forwarder 
+
+            ---------------------------------------------------------------
+            options {
+                    directory "/var/cache/bind";
+
+                    forwarders {
+                            103.10.70.120;
+                    };
+
+                    dnssec-validation no;
+                    allow-recursion { any; };
+
+                    listen-on-v6 { any; };
+            };
+            ---------------------------------------------------------------
