@@ -256,3 +256,151 @@ Configure the system environment timezone, and hostname, IP address according to
                     listen-on-v6 { any; };
             };
             ---------------------------------------------------------------
+
+- Certificate Authority
+  - directory /root/ca
+  - Country Code : ID
+  - Organization : LKS Jawa Tengah
+  - Common Name : Jateng 2024 CA
+  - Create additional certificate
+    - CN : mail.utara.site    Mail Server
+    - CN : www.utara.site     Web
+    - CN : file.utara.site    Web
+    - CN : www.selatan.site   Web
+
+  - Create directory /root/ca
+    #mkdir /root/ca
+
+  - Configure /etc/ssl/openssl.cnf
+    #nano /etc/ssl/openssl.cnf
+
+    Find
+    Note : Just Change the (<---)
+
+    [ CA_default ]
+
+    dir             = /root/ca   <---       # Where everything is kept
+    certs           = $dir/certs            # Where the issued certs are kept
+    crl_dir         = $dir/crl              # Where the issued crl are kept
+    database        = $dir/index.txt        # database index file.
+
+    [ req_distinguished_name ]
+    countryName                     = Country Name (2 letter code)
+    countryName_default             = ID  <---
+    countryName_min                 = 2
+    countryName_max                 = 2
+
+    stateOrProvinceName             = State or Province Name (full name)
+    stateOrProvinceName_default     = Some-State
+
+    localityName                    = Locality Name (eg, city)
+
+    0.organizationName              = Organization Name (eg, company)
+    0.organizationName_default      = LKS Jawa Tengah  <---
+
+  - Configure /usr/lib/ssl/misc/CA.pl
+    #nano /usr/lib/ssl/misc/CA.pl
+
+    Find
+    Note : Just Change the (<---)
+
+    my $CATOP = "/root/ca";  <---
+
+
+  - Create Certificate
+    #/usr/lib/ssl/misc/CA.pl -newca
+
+    -----
+    Country Name (2 letter code) [ID]:
+    State or Province Name (full name) [Some-State]:
+    Locality Name (eg, city) []:
+    Organization Name (eg, company) [LKS Jawa Tengah]:
+    Organizational Unit Name (eg, section) []:
+    Common Name (e.g. server FQDN or YOUR name) []:Jateng 2024 CA
+    Email Address []:
+
+    #cp cacert.pem ca.pem
+
+    Note : remove until begin
+
+    #cp ca.pem /usr/local/share/ca-certificates/
+    #update-ca-certificates
+
+    #cd /root/ca/private
+    #openssl rsa -in cakey.pem -out cacert.key
+    #mv cacert.key /root/ca 
+    #cd 
+
+  - Create Additional Certificate
+    - Create Directory for each additional certificate
+      #mkdir /root/ca/utara
+      #mkdir /root/ca/selatan
+      
+      #mkdir /root/ca/utara/mail
+      #mkdir /root/ca/utara/www
+      #mkdir /root/ca/utara/file
+      #mkdir /root/ca/selatan/www
+
+    - Create Certificate mail.utara.site
+      #cd /root/ca/utara/mail
+      #/usr/lib/ssl/misc/CA.pl -newreq-nodes
+
+          Country Name (2 letter code) [ID]:
+          State or Province Name (full name) [Some-State]:
+          Locality Name (eg, city) []:
+          Organization Name (eg, company) [LKS Jawa Tengah]:
+          Organizational Unit Name (eg, section) []:
+          Common Name (e.g. server FQDN or YOUR name) []:mail.utara.site  <---
+          Email Address []:
+
+      #/usr/lib/ssl/misc/CA.pl -sign
+      #cp newcert.pem mailcert.pem
+      #openssl rsa -in newkey.pem -out mailkey.pem
+
+    - Create Certificate www.utara.site
+      #cd /root/ca/utara/www
+      #/usr/lib/ssl/misc/CA.pl -newreq-nodes
+
+          Country Name (2 letter code) [ID]:
+          State or Province Name (full name) [Some-State]:
+          Locality Name (eg, city) []:
+          Organization Name (eg, company) [LKS Jawa Tengah]:
+          Organizational Unit Name (eg, section) []:
+          Common Name (e.g. server FQDN or YOUR name) []:www.utara.site  <---
+          Email Address []:
+
+      #/usr/lib/ssl/misc/CA.pl -sign
+      #cp newcert.pem wwwutacert.pem
+      #openssl rsa -in newkey.pem -out wwwutakey.pem
+
+    - Create Certificate file.utara.site
+      #cd /root/ca/utara/file
+      #/usr/lib/ssl/misc/CA.pl -newreq-nodes
+
+          Country Name (2 letter code) [ID]:
+          State or Province Name (full name) [Some-State]:
+          Locality Name (eg, city) []:
+          Organization Name (eg, company) [LKS Jawa Tengah]:
+          Organizational Unit Name (eg, section) []:
+          Common Name (e.g. server FQDN or YOUR name) []:file.utara.site  <---
+          Email Address []:
+
+      #/usr/lib/ssl/misc/CA.pl -sign
+      #cp newcert.pem filecert.pem
+      #openssl rsa -in newkey.pem -out filekey.pem
+
+    - Create Certificate www.selatan.site
+      #cd /root/ca/selatan/www
+      #/usr/lib/ssl/misc/CA.pl -newreq-nodes
+
+          Country Name (2 letter code) [ID]:
+          State or Province Name (full name) [Some-State]:
+          Locality Name (eg, city) []:
+          Organization Name (eg, company) [LKS Jawa Tengah]:
+          Organizational Unit Name (eg, section) []:
+          Common Name (e.g. server FQDN or YOUR name) []:www.selatan.site  <---
+          Email Address []:
+
+      #/usr/lib/ssl/misc/CA.pl -sign
+      #cp newcert.pem wwwselcert.pem
+      #openssl rsa -in newkey.pem -out wwwselkey.pem
